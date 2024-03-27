@@ -1,0 +1,6 @@
+﻿services:
+  fd-modhelper:
+    image: fd-modhelper
+    build:
+      context: .
+      dockerfile: FD-ModHelper/Dockerfile
