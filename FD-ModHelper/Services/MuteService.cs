@@ -1,7 +1,9 @@
+using System.Runtime.CompilerServices;
 using FDModHelper.Data;
 using Humanizer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Remora.Discord.API.Abstractions.Objects;
 using Remora.Discord.API.Abstractions.Rest;
 using Remora.Discord.Gateway;
@@ -12,51 +14,52 @@ namespace FDModHelper.Services;
 
 public sealed class MuteService
 (
+    TimeProvider time,
     IConfiguration config,
     LoggingService logging,
     DiscordGatewayClient gateway,
     IDiscordRestGuildAPI guildApi,
     IDbContextFactory<ModHelperContext> contextFactory
-)
+) : BackgroundService
 {
-    private readonly List<UserMute> _mutes = new();
+    private readonly List<UserMute> _mutes = [];
+    private readonly Snowflake _muteRoleID = new(config.GetValue<ulong>("XENON_MuteRoleID"));
+    private readonly Snowflake _guildID = new(config.GetValue<ulong>("XENON_DiscordGuildID"));
     
-    private Task _gatewayTask = Task.CompletedTask;
-    
-    public async Task RunAsync(CancellationToken cancellationToken)
-    {
-        _gatewayTask = RunGatewayAsync(cancellationToken);
-        
-        await Task.Delay(-1, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-    }
     
     public async Task<Result> AddMuteAsync(IUser target, IUser moderator, DateTimeOffset expiry, string reason)
     {
-        var mute = new UserMute(target.ID, moderator.ID, expiry, reason);
+        UserMute mute = new()
+        {
+            UserID = target.ID,
+            Moderator = moderator.ID,
+            CreatedAt = time.GetUtcNow(),
+            Expiry = expiry,
+            Reason = reason,
+        };
         
         _mutes.Add(mute);   
         
-        await using var context = await contextFactory.CreateDbContextAsync();
+        await using ModHelperContext context = await contextFactory.CreateDbContextAsync();
         await context.Mutes.AddAsync(mute);
         await context.SaveChangesAsync();
         
-        var muteRoleID = config.GetValue<ulong>("XENON_MuteRoleID");
-        var guildID = config.GetValue<ulong>("XENON_DiscordGuildID");
-        
-        var muteResult = await guildApi.AddGuildMemberRoleAsync(new(guildID), mute.UserID, new(muteRoleID), mute.Reason.Truncate(50, "[...]"));
+        Result muteResult = await guildApi.AddGuildMemberRoleAsync(_guildID, mute.UserID, _muteRoleID, $"{moderator.Username}: {reason}".Truncate(50, "[...]"));
 
-        await logging.LogActionAsync(new(guildID), target, moderator, expiry, reason);
+        await logging.LogActionAsync(target, moderator, expiry, reason);
 
         return muteResult;
     }
-    
-    private async Task RunGatewayAsync(CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            var gatewayTaskResult = await gateway.RunAsync(cancellationToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 
-            if (gatewayTaskResult.IsSuccess)
+    protected async override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var gatewayTask = gateway.RunAsync(stoppingToken);
+            
+            await ((Task)gatewayTask).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+
+            if (gatewayTask.Result.IsSuccess)
             {
                 return;
             }
