@@ -4,7 +4,7 @@ using Remora.Discord.API.Abstractions.Rest;
 using Remora.Discord.API.Objects;
 using Remora.Rest.Core;
 
-namespace FDModHelper.Services;
+namespace Xenon.Services;
 
 public class LoggingService(IConfiguration config, IDiscordRestChannelAPI channels)
 {

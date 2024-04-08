@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using FDModHelper.Data;
+using Xenon.Data;
 using Humanizer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,7 +10,7 @@ using Remora.Discord.Gateway;
 using Remora.Rest.Core;
 using Remora.Results;
 
-namespace FDModHelper.Services;
+namespace Xenon.Services;
 
 public sealed class MuteService
 (

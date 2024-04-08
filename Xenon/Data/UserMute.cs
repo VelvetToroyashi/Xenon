@@ -1,6 +1,6 @@
 using Remora.Rest.Core;
 
-namespace FDModHelper.Data;
+namespace Xenon.Data;
 
 /// <summary>
 /// Represents a mute for a user.

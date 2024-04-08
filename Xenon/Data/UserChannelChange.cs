@@ -1,6 +1,6 @@
 using Remora.Rest.Core;
 
-namespace FDModHelper.Data;
+namespace Xenon.Data;
 
 public class UserChannelChange
 {

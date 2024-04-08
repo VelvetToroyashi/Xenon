@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace FDModHelper.Data;
+namespace Xenon.Data;
 
 public class ModHelperContext : DbContext
 {
