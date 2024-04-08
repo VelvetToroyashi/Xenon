@@ -8,7 +8,7 @@ namespace FDModHelper.Services;
 
 public class LoggingService(IConfiguration config, IDiscordRestChannelAPI channels)
 {
-    public async Task LogActionAsync(Snowflake guildID, IUser user, IUser moderator, DateTimeOffset expiration, string reason = "")
+    public async Task LogActionAsync(IUser user, IUser moderator, DateTimeOffset expiration, string reason = "not specified")
     {
         var logChannelID = config.GetValue<ulong>("XENON_LoggingChannelID");
         
