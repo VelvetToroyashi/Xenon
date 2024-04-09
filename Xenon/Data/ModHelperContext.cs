@@ -2,11 +2,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Xenon.Data;
 
-public class ModHelperContext : DbContext
+public class ModHelperContext(DbContextOptions<ModHelperContext> options) : DbContext(options)
 {
-    public DbSet<UserMute> Mutes { get; set; } = null!;
+    public required DbSet<UserMute> Mutes { get; set; } 
     
-    public ModHelperContext(DbContextOptions<ModHelperContext> options) : base(options)
-    {
-    }
+    public required DbSet<UserChannelChange> ChannelChanges { get; set; }
 }
