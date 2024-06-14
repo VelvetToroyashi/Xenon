@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Xenon.Data;
 using Humanizer;
 using Microsoft.EntityFrameworkCore;
@@ -22,33 +21,108 @@ public sealed class MuteService
     IDbContextFactory<ModHelperContext> contextFactory
 ) : BackgroundService
 {
-    private readonly List<UserMute> _mutes = [];
-    private readonly Snowflake _muteRoleID = new(config.GetValue<ulong>("XENON_MuteRoleID"));
-    private readonly Snowflake _guildID = new(config.GetValue<ulong>("XENON_DiscordGuildID"));
-    
-    
-    public async Task<Result> AddMuteAsync(IUser target, IUser moderator, DateTimeOffset expiry, string reason)
+    private readonly List<UserMute> mutes = [];
+    private readonly Snowflake guildID = new(config.GetValue<ulong>("XENON_DiscordGuildID"));
+    private readonly Snowflake vcBanRoleID = new(config.GetValue<ulong>("XENON_VoiceBanRoleID"));
+    private readonly Snowflake quarantineRoleID = new(config.GetValue<ulong>("XENON_QuarantineRoleID"));
+
+    public async Task<Result> VCBanUserAsync
+    (
+        IUser target,
+        IUser moderator,
+        DateTimeOffset expiry,
+        string reason
+    )
     {
         UserMute mute = new()
         {
             UserID = target.ID,
             Moderator = moderator.ID,
             CreatedAt = time.GetUtcNow(),
+            AppliedRoleID = vcBanRoleID,
             Expiry = expiry,
             Reason = reason,
         };
-        
-        _mutes.Add(mute);   
-        
+
+        mutes.Add(mute);
+
         await using ModHelperContext context = await contextFactory.CreateDbContextAsync();
         await context.Mutes.AddAsync(mute);
         await context.SaveChangesAsync();
-        
-        Result muteResult = await guildApi.AddGuildMemberRoleAsync(_guildID, mute.UserID, _muteRoleID, $"{moderator.Username}: {reason}".Truncate(50, "[...]"));
+
+        Result muteResult = await guildApi.AddGuildMemberRoleAsync(guildID, mute.UserID, vcBanRoleID, $"{moderator.Username}: {reason}".Truncate(50, "[...]"));
 
         await logging.LogActionAsync(target, moderator, expiry, reason);
 
         return muteResult;
+    }
+
+    // Document the method:
+    /// <summary>
+    /// Quarantines a user from voice channels.
+    /// </summary>
+    /// <param name="target">The user to quarantine.</param>
+    /// <param name="moderator">The user who issued the quarantine.</param>
+    /// <param name="expiry">When the quarantine expires.</param>
+    /// <param name="reason">The reason for the quarantine.</param>
+    /// <returns>A <see cref="Result"/> indicating the outcome of the operation.</returns>
+    public async Task<Result> VCQuarantineUserAsync
+    (
+        IUser target,
+        IUser moderator,
+        DateTimeOffset expiry,
+        string reason
+    )
+    {
+        UserMute mute = new()
+        {
+            UserID = target.ID,
+            Moderator = moderator.ID,
+            CreatedAt = time.GetUtcNow(),
+            AppliedRoleID = quarantineRoleID,
+            Expiry = expiry,
+            Reason = reason,
+        };
+
+        mutes.Add(mute);
+
+        await using ModHelperContext context = await contextFactory.CreateDbContextAsync();
+        await context.Mutes.AddAsync(mute);
+        await context.SaveChangesAsync();
+
+        Result muteResult = await guildApi.AddGuildMemberRoleAsync(guildID, mute.UserID, quarantineRoleID, $"{moderator.Username}: {reason}".Truncate(50, "[...]"));
+
+        await logging.LogActionAsync(target, moderator, expiry, reason);
+
+        return muteResult;
+    }
+
+    /// <summary>
+    /// Unbans a user from voice channels.
+    /// </summary>
+    /// <param name="target">The user to unban.</param>
+    /// <returns>A <see cref="Result"/> indicating the outcome of the operation.</returns>
+    public async Task<Result> UnVCBanUserAsync(IUser target)
+    {
+        UserMute? mute = mutes.FirstOrDefault(x => x.UserID == target.ID);
+
+        if (mute is not null)
+        {
+            mutes.Remove(mute);
+        }
+
+        await using ModHelperContext context = await contextFactory.CreateDbContextAsync();
+        mute = context.Mutes.FirstOrDefault(m => m.UserID == target.ID && m.Expiry > time.GetUtcNow());
+
+        if (mute is null)
+        {
+            return Result.FromError(new NotFoundError("User is not banned from voice channels."));
+        }
+
+        await guildApi.RemoveGuildMemberRoleAsync(guildID, mute.UserID, vcBanRoleID, "Unbanned from voice channels.");
+        await guildApi.RemoveGuildMemberRoleAsync(guildID, mute.UserID, quarantineRoleID, "Unbanned from voice channels.");
+
+        return Result.Success;
     }
 
     protected async override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -56,7 +130,6 @@ public sealed class MuteService
         while (!stoppingToken.IsCancellationRequested)
         {
             var gatewayTask = gateway.RunAsync(stoppingToken);
-            
             await ((Task)gatewayTask).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 
             if (gatewayTask.Result.IsSuccess)
