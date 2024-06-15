@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Remora.Commands.Conditions;
 using Remora.Discord.API.Abstractions.Objects;
 using Remora.Discord.API.Abstractions.Rest;
+using Remora.Discord.API.Objects;
 using Remora.Discord.Commands.Contexts;
 using Remora.Discord.Commands.Results;
 using Remora.Rest.Core;
@@ -32,12 +33,19 @@ public class RequiresJanitorRoleCheck
             return Result.Success;
         }
 
-        await interactions.CreateFollowupMessageAsync
+        await interactions.CreateInteractionResponseAsync
         (
-            context.Interaction.ApplicationID,
+            context.Interaction.ID,
             context.Interaction.Token,
-            "You do not have permission to use this command.",
-            flags: MessageFlags.Ephemeral,
+            new InteractionResponse
+            (
+                InteractionCallbackType.ChannelMessageWithSource,
+                new(new InteractionMessageCallbackData
+                {
+                    Content = "You do not have permission to use this command.",
+                    Flags = MessageFlags.Ephemeral,
+                })
+            ),
             ct: ct
         );
 
