@@ -7,11 +7,13 @@ using Remora.Discord.API.Abstractions.Rest;
 using Remora.Discord.Commands.Attributes;
 using Remora.Discord.Commands.Contexts;
 using Remora.Results;
+using Serilog;
 using Xenon.Checks;
 using Xenon.Services;
 
 namespace Xenon.Commands;
 
+[Ephemeral]
 [Group("vc")]
 [RequiresJanitorRole]
 [AllowedContexts(InteractionContextType.Guild)]
@@ -21,6 +23,7 @@ public class ModerationCommands(IInteractionContext context, IDiscordRestInterac
     [Description("Banishes a user from voice channels.")]
     public async Task<IResult> BanishAsync(IUser target, TimeSpan duration, string reason)
     {
+        Log.Logger.Information("Banishing {Target} from voice channels for {Duration} due to: {Reason}", target, duration, reason);
         Result muteResult = await mutes.VCBanUserAsync
         (
             target,
