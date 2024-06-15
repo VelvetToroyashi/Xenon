@@ -30,7 +30,7 @@ Host.CreateDefaultBuilder(args)
             services.AddSingleton<LoggingService>();
             services.AddDbContext<ModHelperContext>(options => options.UseSqlite(), ServiceLifetime.Transient);
 
-            services.AddCondition<RequiresJanitorRoleCheck>();
+            services.AddDiscordGateway(s => s.GetRequiredService<IConfiguration>()["DiscordToken"]!);
 
             services.AddDiscordCommands(true)
                     .AddCommandTree()
