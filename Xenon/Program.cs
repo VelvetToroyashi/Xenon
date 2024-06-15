@@ -1,4 +1,5 @@
 ﻿
+using System.Diagnostics;
 using Xenon.Data;
 using Xenon.Services;
 using Microsoft.EntityFrameworkCore;
@@ -50,14 +51,36 @@ Host.CreateDefaultBuilder(args)
 
 IHost host = hostBuilder.Build();
 
-var slashService = host.Services.GetRequiredService<SlashService>();
-
-Result updateResult = await slashService.UpdateSlashCommandsAsync();
-
-if (!updateResult.IsSuccess)
-{
-    Log.Logger.Error("Failed to update slash commands: {Error}", updateResult.Error.Message);
-    return;
-}
+await MigrateDbAsync();
+await RegisterSlashCommandsAsync();
 
 await host.RunAsync();
+
+
+async Task RegisterSlashCommandsAsync()
+{
+    var slashService = host.Services.GetRequiredService<SlashService>();
+
+    Result updateResult = await slashService.UpdateSlashCommandsAsync();
+
+    if (!updateResult.IsSuccess)
+    {
+        Log.Logger.Error("Failed to update slash commands: {Error}", updateResult.Error.Message);
+        Environment.Exit(-1);
+    }
+}
+
+async Task MigrateDbAsync()
+{
+    var contextFactory = host.Services.GetRequiredService<IDbContextFactory<ModHelperContext>>();
+
+    await using ModHelperContext context = contextFactory.CreateDbContext();
+
+    int pending = context.Database.GetPendingMigrations().Count();
+
+    long start = Stopwatch.GetTimestamp();
+    await context.Database.MigrateAsync();
+    TimeSpan time = Stopwatch.GetElapsedTime(start);
+
+    Log.Logger.Information("Applied {Pending} migrations in {Time:N0}ms", pending, time.TotalMilliseconds);
+}
