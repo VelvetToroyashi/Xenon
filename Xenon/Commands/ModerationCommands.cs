@@ -45,11 +45,37 @@ public class ModerationCommands(IInteractionContext context, IDiscordRestInterac
         );
     }
 
+    [Command("quarantine")]
+    [Description("Quarantines a user from voice channels.")]
+    public async Task<IResult> QuarantineAsync(IUser target, TimeSpan duration, string reason)
+    {
+        Log.Logger.Information("Quarantining {Target} from voice channels for {Duration} due to: {Reason}", target, duration, reason);
+        Result muteResult = await mutes.VCBanUserAsync
+        (
+            target,
+            context.Interaction.Member.Value.User.Value,
+            DateTimeOffset.UtcNow + duration,
+            reason
+        );
+
+        string message = muteResult.IsSuccess
+            ? $"<@{target.ID}> has been quarantined from voice channels for {duration.Humanize()} due to: {reason}."
+            : $"Failed to quarantine user <@{target.ID}> from voice channels.";
+
+        return await interactions.CreateFollowupMessageAsync
+        (
+            context.Interaction.ApplicationID,
+            context.Interaction.Token,
+            message,
+            flags: MessageFlags.Ephemeral
+        );
+    }
+
     [Command("unban")]
     [Description("Unbanishes or unquarantines a user from voice channels.")]
     public async Task<IResult> UnbanishAsync(IUser target)
     {
-        Result unmuteResult = await mutes.UnVCBanUserAsync(target);
+        Result unmuteResult = await mutes.UnVCBanUserAsync(target.ID);
 
         string message = unmuteResult.IsSuccess
             ? $"<@{target.ID}> has been unbanished from voice channels."

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Xenon.Data;
 
@@ -10,9 +11,11 @@ using Xenon.Data;
 namespace Xenon.Migrations
 {
     [DbContext(typeof(ModHelperContext))]
-    partial class ModHelperContextModelSnapshot : ModelSnapshot
+    [Migration("20240615080613_AddActiveColumn")]
+    partial class AddActiveColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.3");

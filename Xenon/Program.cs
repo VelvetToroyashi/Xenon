@@ -32,7 +32,9 @@ Host.CreateDefaultBuilder(args)
             services.AddSingleton(TimeProvider.System);
 
             services.AddSingleton<MuteService>();
+            services.AddHostedService<DiscordService>();
             services.AddHostedService(s => s.GetRequiredService<MuteService>());
+
             services.AddSingleton<LoggingService>();
             services.AddDbContextFactory<ModHelperContext>(options => options.UseSqlite(), ServiceLifetime.Transient);
 

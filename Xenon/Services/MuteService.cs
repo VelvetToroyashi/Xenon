@@ -54,6 +54,8 @@ public sealed class MuteService
 
         await logging.LogActionAsync(target, moderator, expiry, reason);
 
+        await guildApi.ModifyGuildMemberAsync(guildID, target.ID, channelID: null);
+
         return muteResult;
     }
 
@@ -94,17 +96,21 @@ public sealed class MuteService
 
         await logging.LogActionAsync(target, moderator, expiry, reason);
 
+        // Third parameter is null by default, which will kick the user
+        // from the voice channel.
+        await guildApi.ModifyGuildMemberAsync(guildID, target.ID, channelID: null);
+
         return muteResult;
     }
 
     /// <summary>
     /// Unbans a user from voice channels.
     /// </summary>
-    /// <param name="target">The user to unban.</param>
+    /// <param name="targetID">The user to unban.</param>
     /// <returns>A <see cref="Result"/> indicating the outcome of the operation.</returns>
-    public async Task<Result> UnVCBanUserAsync(IUser target)
+    public async Task<Result> UnVCBanUserAsync(Snowflake targetID)
     {
-        UserMute? mute = mutes.FirstOrDefault(x => x.UserID == target.ID);
+        UserMute? mute = mutes.FirstOrDefault(x => x.UserID == targetID);
 
         if (mute is not null)
         {
@@ -112,7 +118,7 @@ public sealed class MuteService
         }
 
         await using ModHelperContext context = await contextFactory.CreateDbContextAsync();
-        mute = context.Mutes.FirstOrDefault(m => m.UserID == target.ID && m.Expiry > time.GetUtcNow());
+        mute = context.Mutes.FirstOrDefault(m => m.UserID == targetID && m.Active);
 
         if (mute is null)
         {
@@ -122,19 +128,36 @@ public sealed class MuteService
         await guildApi.RemoveGuildMemberRoleAsync(guildID, mute.UserID, vcBanRoleID, "Unbanned from voice channels.");
         await guildApi.RemoveGuildMemberRoleAsync(guildID, mute.UserID, quarantineRoleID, "Unbanned from voice channels.");
 
+        mute.Active = false;
+
+        await context.SaveChangesAsync();
+
         return Result.Success;
     }
 
     protected async override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            var gatewayTask = gateway.RunAsync(stoppingToken);
-            await ((Task)gatewayTask).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        // Load all active mutes from the database at startup
+        await using ModHelperContext context = await contextFactory.CreateDbContextAsync(stoppingToken);
+        mutes.AddRange(context.Mutes.Where(m => m.Active));
 
-            if (gatewayTask.Result.IsSuccess)
+        PeriodicTimer timer = new(TimeSpan.FromMinutes(1));
+
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            // Iterate through all active mutes
+            for (var i = mutes.Count - 1; i >= 0; i--)
             {
-                return;
+                UserMute mute = mutes[i];
+
+                // If the mute has expired
+                if (time.GetUtcNow() < mute.Expiry)
+                {
+                    continue;
+                }
+
+                await UnVCBanUserAsync(mute.UserID);
+                mutes.Remove(mute);
             }
         }
     }

@@ -38,4 +38,6 @@ public class UserMute
     /// The reason for the mute.
     /// </summary>
     public required string Reason { get; init; }
+
+    public bool Active { get; set; } = true;
 }
