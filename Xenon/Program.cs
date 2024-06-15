@@ -15,31 +15,46 @@ using Xenon.Commands;
 
 IHostBuilder hostBuilder =
 Host.CreateDefaultBuilder(args)
-    .ConfigureHostConfiguration(config => config.AddEnvironmentVariables("XENON_"))
+    .ConfigureHostConfiguration(config => config.AddEnvironmentVariables("XENON_").AddJsonFile("appsettings.json", true, true))
     .ConfigureLogging(l => l.ClearProviders().AddSerilog())
     .ConfigureServices
     (
         (_, services) =>
         {
             Log.Logger = new LoggerConfiguration()
-                .WriteTo.Console()
-                .CreateLogger();
+                         .WriteTo.Console()
+                         .CreateLogger();
+
+            services.AddSingleton(TimeProvider.System);
 
             services.AddSingleton<MuteService>();
             services.AddHostedService(s => s.GetRequiredService<MuteService>());
             services.AddSingleton<LoggingService>();
-            services.AddDbContext<ModHelperContext>(options => options.UseSqlite(), ServiceLifetime.Transient);
+            services.AddDbContextFactory<ModHelperContext>(options => options.UseSqlite(), ServiceLifetime.Transient);
 
             services.AddDiscordGateway(s => s.GetRequiredService<IConfiguration>()["DiscordToken"]!);
 
             services.AddDiscordCommands(true)
                     .AddCommandTree()
-                    .WithCommandGroup<ModerationCommands>();
+                    .WithCommandGroup<ModerationCommands>()
+                    .Finish()
+                    .AddParser<MicroTimeSpanParser>()
+                    .AddCondition<RequiresJanitorRoleCheck>();
 
             services.AddDelegateResponders();
         }
     );
 
 IHost host = hostBuilder.Build();
+
+var slashService = host.Services.GetRequiredService<SlashService>();
+
+Result updateResult = await slashService.UpdateSlashCommandsAsync();
+
+if (!updateResult.IsSuccess)
+{
+    Log.Logger.Error("Failed to update slash commands: {Error}", updateResult.Error.Message);
+    return;
+}
 
 await host.RunAsync();
