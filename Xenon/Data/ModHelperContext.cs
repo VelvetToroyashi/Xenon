@@ -9,6 +9,12 @@ public class ModHelperContext(DbContextOptions<ModHelperContext> options) : DbCo
 
     public required DbSet<UserChannelChange> ChannelChanges { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlite("Data Source=./xenon.db");
+        base.OnConfiguring(optionsBuilder);
+    }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<Snowflake>().HaveConversion<SnowflakeDBConverter>();
