@@ -10,15 +10,13 @@ public class LoggingService(IConfiguration config, IDiscordRestChannelAPI channe
 {
     public async Task LogActionAsync(IUser user, IUser moderator, DateTimeOffset expiration, string reason = "not specified")
     {
-        var logChannelID = config.GetValue<ulong>("XENON_LoggingChannelID");
-        
+        var logChannelID = config.GetValue<ulong>("LoggingChannelID");
+
         var expirationTimestamp = expiration.ToUnixTimeSeconds();
-        
-        // TODO: Change with display name, but Remora annoyingly removed this because Discord had 
-        // inaccurately documented its optionality.
+
         var embed = new Embed
         (
-            Title: $"{moderator.Username} muted {user.Username}",
+            Title: $"{moderator.GlobalName.OrDefault(moderator.Username)} muted {user.GlobalName.OrDefault(user.Username)}",
             Description: $"Reason: {reason}",
             Fields: new([
                 new EmbedField("Target ID", user.ID.ToString(), true),
