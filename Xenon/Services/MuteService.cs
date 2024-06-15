@@ -22,7 +22,7 @@ public sealed class MuteService
 ) : BackgroundService
 {
     private readonly List<UserMute> mutes = [];
-    private readonly Snowflake guildID = new(config.GetValue<ulong>("DiscordGuildID"));
+    private readonly Snowflake guildID = new(config.GetValue<ulong>("DiscordServerID"));
     private readonly Snowflake vcBanRoleID = new(config.GetValue<ulong>("VoiceBanRoleID"));
     private readonly Snowflake quarantineRoleID = new(config.GetValue<ulong>("QuarantineRoleID"));
 
