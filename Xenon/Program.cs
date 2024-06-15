@@ -65,7 +65,7 @@ async Task RegisterSlashCommandsAsync()
 
     if (!updateResult.IsSuccess)
     {
-        Log.Logger.Error("Failed to update slash commands: {Error}", updateResult.Error.Message);
+        Log.Logger.Fatal("Failed to update slash commands: {Error}", updateResult.Error.Message);
         Environment.Exit(-1);
     }
 }
