@@ -1,6 +1,6 @@
 ﻿services:
-  fd-modhelper:
-    image: fd-modhelper
-    build:
-      context: .
-      dockerfile: FD-ModHelper/Dockerfile
+  xenon:
+    image:
+      velvetthepanda/xenon
+    env_file:
+      - .env

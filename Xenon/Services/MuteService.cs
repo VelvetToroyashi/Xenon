@@ -141,7 +141,7 @@ public sealed class MuteService
         await using ModHelperContext context = await contextFactory.CreateDbContextAsync(stoppingToken);
         mutes.AddRange(context.Mutes.Where(m => m.Active));
 
-        PeriodicTimer timer = new(TimeSpan.FromMinutes(1));
+        using PeriodicTimer timer = new(TimeSpan.FromMinutes(1));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
