@@ -26,7 +26,8 @@ public class RequiresJanitorRoleCheck
         CancellationToken ct = default
     )
     {
-        var hasPermission = context.Interaction.Member.Value.Roles.Contains(new Snowflake(configuration.GetValue<ulong>("JanitorRoleID")));
+        var janitorRoles = configuration.GetSection("JanitorRoleIDs").Get<ulong[]>()!.Select(c => new Snowflake(c));
+        var hasPermission = context.Interaction.Member.Value.Roles.Intersect(janitorRoles).Any();
 
         if (hasPermission)
         {
